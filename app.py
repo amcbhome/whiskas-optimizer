@@ -28,7 +28,7 @@ st.markdown("""
     /* Metric Labels */
     [data-testid="stMetricLabel"] {
         color: #e5f396 !important;
-        font-size: 1.1rem !important;
+        font-size: 0.95rem !important; /* Scaled down slightly to fit 4 cards perfectly */
         font-weight: 600;
         white-space: nowrap; /* Prevents awkward text wrapping on smaller screens */
     }
@@ -108,7 +108,7 @@ if pulp.LpStatus[prob.status] == 'Optimal':
     # Main Dashboard Area (1x2 column layout)
     mix_chart_col, mix_metrics_col = st.columns([1, 1.5])
     
-    # Left Column: Doughnut Chart
+    # Left Column: Pie Chart
     with mix_chart_col:
         st.subheader("Mix Composition")
         
@@ -118,24 +118,33 @@ if pulp.LpStatus[prob.status] == 'Optimal':
             'Grams': [max(0.0, x[ing].varValue) for ing in Ingredients]
         })
         
+        # Create combined labels (e.g., "Beef 60.0%")
         df_mix['Percent_Label'] = df_mix['Grams'].map('{:.1f}%'.format)
+        df_mix['Chart_Label'] = df_mix['Ingredient'] + ' ' + df_mix['Percent_Label']
         df_mix_chart = df_mix[df_mix['Grams'] > 0]
         
         neon_colors = ["#A678E2", "#FFFC99", "#8EE6D5", "#98E68D", "#89E6E3", "#94E2E0"] 
         custom_scale = alt.Scale(domain=df_mix['Ingredient'].tolist(), range=neon_colors[:len(Ingredients)])
 
+        # Base chart with legend removed (legend=None)
         base = alt.Chart(df_mix_chart).encode(
-            theta=alt.Theta("Grams:Q"),
-            color=alt.Color("Ingredient:N", scale=custom_scale, legend=alt.Legend(title="Ingredients", orient="bottom", titleColor="#ffffff", labelColor="#ffffff")),
+            theta=alt.Theta("Grams:Q", stack=True),
+            color=alt.Color("Ingredient:N", scale=custom_scale, legend=None),
             tooltip=["Ingredient:N", "Percent_Label:N", alt.Tooltip("Grams:Q", format=".1f")]
         )
         
-        doughnut = base.mark_arc(innerRadius=60, stroke="#3e3e42", strokeWidth=1)
-        text = base.mark_text(radius=80, fill="#1a1a1c", fontSize=13, fontWeight="bold").encode(
-            text=alt.Text("Percent_Label:N")
+        # Create solid Pie Chart (innerRadius=0) and define a fixed outer radius
+        pie = base.mark_arc(innerRadius=0, outerRadius=110, stroke="#3e3e42", strokeWidth=1)
+        
+        # Place the combined text labels outside the pie slices
+        text = base.mark_text(radius=145, fill="#e5f396", fontSize=14, fontWeight="bold").encode(
+            text=alt.Text("Chart_Label:N")
         )
         
-        chart_final = alt.layer(doughnut, text).properties(
+        # Add padding to prevent the outside labels from being clipped off the canvas
+        chart_final = alt.layer(pie, text).properties(
+            height=350,
+            padding=40,
             background="#262628" 
         ).configure_view(strokeWidth=0)
         
@@ -147,7 +156,7 @@ if pulp.LpStatus[prob.status] == 'Optimal':
         # --- Subsection 1: Ingredient Weights ---
         st.subheader("Ingredient Weights")
         
-        # Create a 3-column grid for ingredients
+        # Create a 3-column grid for ingredients (2 rows)
         ing_cols1 = st.columns(3)
         ing_cols2 = st.columns(3)
         
@@ -164,23 +173,23 @@ if pulp.LpStatus[prob.status] == 'Optimal':
         # --- Subsection 2: Nutritional Breakdown ---
         st.subheader("Nutritional Breakdown")
         
-        # Create an identical 3-column grid for nutritional data
-        nut_cols1 = st.columns(3)
-        nut_cols2 = st.columns(3)
+        # Create a 4-column grid for nutritional data so they all fit on ONE line
+        nut_cols = st.columns(4)
         
         final_prot = sum([protein[i] * max(0.0, x[i].varValue) for i in Ingredients])
         final_fat = sum([fat[i] * max(0.0, x[i].varValue) for i in Ingredients])
         final_fib = sum([fibre[i] * max(0.0, x[i].varValue) for i in Ingredients])
         final_salt = sum([salt[i] * max(0.0, x[i].varValue) for i in Ingredients])
         
-        with nut_cols1[0]:
-            st.metric(label="Total Protein (g)", value=f"{final_prot:.2f}", delta=f"Min: {req_protein}", delta_color="off")
-        with nut_cols1[1]:
-            st.metric(label="Total Fat (g)", value=f"{final_fat:.2f}", delta=f"Min: {req_fat}", delta_color="off")
-        with nut_cols1[2]:
-            st.metric(label="Total Fibre (g)", value=f"{final_fib:.2f}", delta=f"Max: {max_fibre}", delta_color="inverse")
-        with nut_cols2[0]:
-            st.metric(label="Total Salt (g)", value=f"{final_salt:.3f}", delta=f"Max: {max_salt}", delta_color="inverse")
+        # Shortened titles (e.g. "Total Protein" -> "Protein") to guarantee single-line fit
+        with nut_cols[0]:
+            st.metric(label="Protein (g)", value=f"{final_prot:.2f}", delta=f"Min: {req_protein}", delta_color="off")
+        with nut_cols[1]:
+            st.metric(label="Fat (g)", value=f"{final_fat:.2f}", delta=f"Min: {req_fat}", delta_color="off")
+        with nut_cols[2]:
+            st.metric(label="Fibre (g)", value=f"{final_fib:.2f}", delta=f"Max: {max_fibre}", delta_color="inverse")
+        with nut_cols[3]:
+            st.metric(label="Salt (g)", value=f"{final_salt:.3f}", delta=f"Max: {max_salt}", delta_color="inverse")
 
 else:
     st.error("No optimal solution found with the current constraints. Try relaxing the limits in the sidebar.")
