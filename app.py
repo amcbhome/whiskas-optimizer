@@ -28,8 +28,15 @@ with st.sidebar:
     
     # The st.form prevents the app from rerunning until the button is clicked
     with st.form("what_if_form"):
-        st.markdown("Adjust ingredient market costs:")
+        st.markdown("**Adjust ingredient market costs:**")
         edited_costs = st.data_editor(default_costs, hide_index=True, use_container_width=True)
+        
+        st.markdown("---")
+        
+        # New input for the benchmark cost
+        st.markdown("**Adjust Target KPI:**")
+        benchmark_cost = st.number_input("Benchmark Cost (£)", min_value=0.0, value=1.50, step=0.10, format="%.2f")
+        
         calculate_btn = st.form_submit_button("Calculate", type="primary", use_container_width=True)
 
 # App Title
@@ -40,7 +47,6 @@ st.title("Optimization Dashboard")
 # ----------------------------------------------------
 data = {
     "Ingredient": ["Chicken", "Beef", "Mutton", "Rice", "Wheat", "Gel"],
-    # Dynamically pull the costs from the sidebar form
     "Cost": edited_costs["Cost (£/g)"].tolist(), 
     "Protein": [0.100, 0.200, 0.150, 0.000, 0.040, 0.000],
     "Fat": [0.080, 0.100, 0.110, 0.010, 0.010, 0.000],
@@ -128,12 +134,13 @@ with col1:
     with st.container(border=True):
         st.subheader("Optimised Cost")
         
+        # Now uses the dynamic benchmark_cost variable from the sidebar
         fig1 = go.Figure(go.Indicator(
             mode = "number+delta",
             value = optimized_cost,
             number = {'prefix': "£", 'valueformat': ".2f", 'font': {'weight': 'bold'}},
-            delta = {'position': "bottom", 'reference': 1.50, 'relative': False, 'valueformat': ".2f"},
-            title = {"text": "Cost per 100g Can<br><span style='font-size:0.8em;color:gray'>vs Benchmark (£1.50)</span>"}
+            delta = {'position': "bottom", 'reference': benchmark_cost, 'relative': False, 'valueformat': ".2f"},
+            title = {"text": f"Cost per 100g Can<br><span style='font-size:0.8em;color:gray'>vs Benchmark (£{benchmark_cost:.2f})</span>"}
         ))
         fig1.update_layout(height=UNIVERSAL_HEIGHT, margin=dict(t=30, b=10, l=10, r=10))
         st.plotly_chart(fig1, use_container_width=True)
