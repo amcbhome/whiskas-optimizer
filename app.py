@@ -15,18 +15,9 @@ st.markdown("""
     """, unsafe_allow_html=True)
 
 # ----------------------------------------------------
-# Sidebar Navigation & What-If Controls
+# Sidebar: What-If Controls
 # ----------------------------------------------------
 with st.sidebar:
-    st.title("🪶 Feather")
-    st.markdown("---")
-    st.button("⬛ Dashboard", use_container_width=True)
-    st.button("👥 Team", use_container_width=True)
-    st.button("📁 Folders", use_container_width=True)
-    st.button("📊 Reports", use_container_width=True)
-    st.button("⚙️ Settings", use_container_width=True)
-    
-    st.markdown("---")
     st.subheader("What-If Analysis")
     
     # Default baseline costs
