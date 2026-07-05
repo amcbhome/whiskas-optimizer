@@ -84,8 +84,13 @@ for i in df.index:
     actual_fat += val * df.loc[i, "Fat"]
     total_risk += risk_contrib
     
-    if val > 0:
-        results.append({"Ingredient": ing, "Percentage": val, "Cost_Contribution": cost_contrib, "Risk_Contribution": risk_contrib})
+    # Capture all 6 ingredients to ensure they all show up on the horizontal bar chart
+    results.append({
+        "Ingredient": ing, 
+        "Percentage": val, 
+        "Cost_Contribution": cost_contrib, 
+        "Risk_Contribution": risk_contrib
+    })
 
 df_res = pd.DataFrame(results)
 optimized_cost = pulp.value(prob.objective)
@@ -123,11 +128,23 @@ with col2:
         st.markdown('<div class="card-wrapper"></div>', unsafe_allow_html=True)
         st.subheader("Cost Breakdown by Ingredient")
         
-        fig2 = px.bar(df_res, x="Ingredient", y="Cost_Contribution", 
-                      text_auto='.3f', color="Ingredient",
+        # Horizontal bar chart sorted by highest cost contribution at the top
+        fig2 = px.bar(df_res, 
+                      x="Cost_Contribution", 
+                      y="Ingredient", 
+                      orientation='h',
+                      text_auto='.3f', 
+                      color="Ingredient",
                       color_discrete_sequence=teal_palette)
-        fig2.update_layout(showlegend=False, height=250, margin=dict(t=10, b=10, l=10, r=10),
-                           xaxis_title=None, yaxis_title="Cost (£)")
+        
+        fig2.update_layout(
+            showlegend=False, 
+            height=250, 
+            margin=dict(t=10, b=10, l=10, r=10),
+            xaxis_title="Cost (£)", 
+            yaxis_title=None,
+            yaxis={'categoryorder':'total ascending'} 
+        )
         st.plotly_chart(fig2, use_container_width=True)
 
 
@@ -140,7 +157,8 @@ with col3:
         st.markdown('<div class="card-wrapper"></div>', unsafe_allow_html=True)
         st.subheader("Optimised Risk Portfolio")
         
-        fig3 = px.pie(df_res, values="Risk_Contribution", names="Ingredient", hole=0.4,
+        # Filter out 0-value ingredients specifically for the Pie chart to keep it clean
+        fig3 = px.pie(df_res[df_res["Risk_Contribution"] > 0], values="Risk_Contribution", names="Ingredient", hole=0.4,
                       color_discrete_sequence=teal_palette)
         fig3.update_traces(textposition='inside', textinfo='percent+label')
         fig3.update_layout(showlegend=False, height=280, margin=dict(t=10, b=10, l=10, r=10))
