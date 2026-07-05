@@ -15,7 +15,7 @@ st.markdown("""
     """, unsafe_allow_html=True)
 
 # ----------------------------------------------------
-# Sidebar Navigation (Matching the image layout)
+# Sidebar Navigation
 # ----------------------------------------------------
 with st.sidebar:
     st.title("🪶 Feather")
@@ -30,19 +30,24 @@ with st.sidebar:
 st.title("Optimization Dashboard")
 
 # ----------------------------------------------------
-# Data & PuLP Optimization Model (6 Ingredients)
+# Data & PuLP Optimization Model (6 Ingredients, 4 Nutrients)
 # ----------------------------------------------------
 data = {
     "Ingredient": ["Chicken", "Beef", "Mutton", "Rice", "Wheat", "Gel"],
     "Cost": [0.013, 0.008, 0.010, 0.002, 0.005, 0.001],
     "Protein": [0.100, 0.200, 0.150, 0.000, 0.040, 0.000],
     "Fat": [0.080, 0.100, 0.110, 0.010, 0.010, 0.000],
+    "Fibre": [0.001, 0.005, 0.003, 0.010, 0.015, 0.000],
+    "Salt": [0.002, 0.005, 0.007, 0.002, 0.008, 0.000],
     "Risk_Score": [0.05, 0.08, 0.06, 0.02, 0.03, 0.01] 
 }
 df = pd.DataFrame(data)
 
+# Targets
 min_protein = 8.0
 min_fat = 6.0
+max_fibre = 2.0
+max_salt = 0.4
 
 # Initialize Model
 prob = pulp.LpProblem("Whiskas_6_Ingredient", pulp.LpMinimize)
@@ -55,6 +60,8 @@ prob += pulp.lpSum([df.loc[i, "Cost"] * ingredient_vars[df.loc[i, "Ingredient"]]
 prob += pulp.lpSum([ingredient_vars[ing] for ing in df["Ingredient"]]) == 100, "PercentagesSum"
 prob += pulp.lpSum([df.loc[i, "Protein"] * ingredient_vars[df.loc[i, "Ingredient"]] for i in df.index]) >= min_protein, "MinProtein"
 prob += pulp.lpSum([df.loc[i, "Fat"] * ingredient_vars[df.loc[i, "Ingredient"]] for i in df.index]) >= min_fat, "MinFat"
+prob += pulp.lpSum([df.loc[i, "Fibre"] * ingredient_vars[df.loc[i, "Ingredient"]] for i in df.index]) <= max_fibre, "MaxFibre"
+prob += pulp.lpSum([df.loc[i, "Salt"] * ingredient_vars[df.loc[i, "Ingredient"]] for i in df.index]) <= max_salt, "MaxSalt"
 
 # Solve
 prob.solve(pulp.PULP_CBC_CMD(msg=False))
@@ -64,6 +71,8 @@ results = []
 total_risk = 0
 actual_protein = 0
 actual_fat = 0
+actual_fibre = 0
+actual_salt = 0
 
 for i in df.index:
     ing = df.loc[i, "Ingredient"]
@@ -73,6 +82,8 @@ for i in df.index:
     
     actual_protein += val * df.loc[i, "Protein"]
     actual_fat += val * df.loc[i, "Fat"]
+    actual_fibre += val * df.loc[i, "Fibre"]
+    actual_salt += val * df.loc[i, "Salt"]
     total_risk += risk_contrib
     
     results.append({
@@ -122,7 +133,6 @@ with col2:
                       color="Ingredient",
                       color_discrete_sequence=teal_palette)
         
-        # Adding bold formatting to the numerical output on the bars
         fig2.update_traces(texttemplate='<b>%{x:.3f}</b>', textposition='inside')
         
         fig2.update_layout(
@@ -146,27 +156,45 @@ with col3:
         fig3 = px.pie(df_res[df_res["Risk_Contribution"] > 0], values="Risk_Contribution", names="Ingredient", hole=0.4,
                       color_discrete_sequence=teal_palette)
         
-        # Making the pie chart percentage text bold
         fig3.update_traces(textposition='inside', texttemplate='<b>%{percent:.1%}</b><br>%{label}')
         fig3.update_layout(showlegend=False, height=280, margin=dict(t=10, b=10, l=10, r=10))
         fig3.add_annotation(text=f"Total Risk<br><b>{total_risk:.1f}</b>", x=0.5, y=0.5, showarrow=False)
         st.plotly_chart(fig3, use_container_width=True)
 
-# Quadrant 4: Nutrient Target vs Actual (Bottom Right)
+# Quadrant 4: Nutrient grams per 100g tin (Bottom Right)
 with col4:
     with st.container(border=True):
-        st.subheader("Nutrient Targets (g)")
+        st.subheader("Nutrient grams per 100g tin")
         
-        nutrients = ['Protein', 'Fat']
-        targets = [min_protein, min_fat]
-        actuals = [actual_protein, actual_fat]
+        # Package the 4 nutrients into a DataFrame to easily sort them
+        nutrients_data = {
+            'Nutrient': ['Protein', 'Fat', 'Fibre', 'Salt'],
+            'Target Requirement': [min_protein, min_fat, max_fibre, max_salt],
+            'Actual Achieved': [actual_protein, actual_fat, actual_fibre, actual_salt]
+        }
+        df_nut = pd.DataFrame(nutrients_data)
+        
+        # Sort ascending so the highest value sits at the top of the horizontal bar chart
+        df_nut = df_nut.sort_values(by='Actual Achieved', ascending=True)
 
         fig4 = go.Figure(data=[
-            go.Bar(name='Target Requirement', x=nutrients, y=targets, marker_color='#c6f7d0', 
-                   text=[f'<b>{val:.1f}</b>' for val in targets], textposition='auto'),
-            go.Bar(name='Actual Achieved', x=nutrients, y=actuals, marker_color='#114b5f',
-                   text=[f'<b>{val:.1f}</b>' for val in actuals], textposition='auto')
+            go.Bar(name='Target Requirement', 
+                   y=df_nut['Nutrient'], 
+                   x=df_nut['Target Requirement'], 
+                   orientation='h', 
+                   marker_color='#c6f7d0', 
+                   text=[f'<b>{val:.1f}</b>' for val in df_nut['Target Requirement']], 
+                   textposition='auto'),
+            go.Bar(name='Actual Achieved', 
+                   y=df_nut['Nutrient'], 
+                   x=df_nut['Actual Achieved'], 
+                   orientation='h', 
+                   marker_color='#114b5f',
+                   text=[f'<b>{val:.1f}</b>' for val in df_nut['Actual Achieved']], 
+                   textposition='auto')
         ])
+        
         fig4.update_layout(barmode='group', height=280, margin=dict(t=10, b=10, l=10, r=10),
+                           xaxis_title="Grams (g)",
                            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1))
         st.plotly_chart(fig4, use_container_width=True)
