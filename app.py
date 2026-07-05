@@ -15,16 +15,31 @@ st.markdown("""
     """, unsafe_allow_html=True)
 
 # ----------------------------------------------------
-# Sidebar Navigation
+# Sidebar Navigation & What-If Controls
 # ----------------------------------------------------
 with st.sidebar:
     st.title("🪶 Feather")
     st.markdown("---")
-    st.button("⬛ Dashboard", use_container_width=True, type="primary")
+    st.button("⬛ Dashboard", use_container_width=True)
     st.button("👥 Team", use_container_width=True)
     st.button("📁 Folders", use_container_width=True)
     st.button("📊 Reports", use_container_width=True)
     st.button("⚙️ Settings", use_container_width=True)
+    
+    st.markdown("---")
+    st.subheader("What-If Analysis")
+    
+    # Default baseline costs
+    default_costs = pd.DataFrame({
+        "Ingredient": ["Chicken", "Beef", "Mutton", "Rice", "Wheat", "Gel"],
+        "Cost (£/g)": [0.013, 0.008, 0.010, 0.002, 0.005, 0.001]
+    })
+    
+    # The st.form prevents the app from rerunning until the button is clicked
+    with st.form("what_if_form"):
+        st.markdown("Adjust ingredient market costs:")
+        edited_costs = st.data_editor(default_costs, hide_index=True, use_container_width=True)
+        calculate_btn = st.form_submit_button("Calculate", type="primary", use_container_width=True)
 
 # App Title
 st.title("Optimization Dashboard")
@@ -34,7 +49,8 @@ st.title("Optimization Dashboard")
 # ----------------------------------------------------
 data = {
     "Ingredient": ["Chicken", "Beef", "Mutton", "Rice", "Wheat", "Gel"],
-    "Cost": [0.013, 0.008, 0.010, 0.002, 0.005, 0.001],
+    # Dynamically pull the costs from the sidebar form
+    "Cost": edited_costs["Cost (£/g)"].tolist(), 
     "Protein": [0.100, 0.200, 0.150, 0.000, 0.040, 0.000],
     "Fat": [0.080, 0.100, 0.110, 0.010, 0.010, 0.000],
     "Fibre": [0.001, 0.005, 0.003, 0.010, 0.015, 0.000],
@@ -111,7 +127,6 @@ ingredient_colors = {
 # ----------------------------------------------------
 # 4-Quadrant UI Dashboard Output
 # ----------------------------------------------------
-# We set a universal height to enforce a perfect grid layout
 UNIVERSAL_HEIGHT = 320 
 
 # TOP ROW
@@ -163,10 +178,10 @@ with col2:
         
         styled_table = df_table.style.set_properties(**{
             'font-size': '15px',
-            'font-weight': 'bold'
+            'font-weight': 'bold',
+            'font-family': 'sans-serif'
         })
         
-        # Enforcing exact height on the dataframe widget
         st.dataframe(styled_table, height=UNIVERSAL_HEIGHT, hide_index=True, use_container_width=True)
 
 # BOTTOM ROW
@@ -224,8 +239,8 @@ with col4:
         
         styled_req = df_req.style.set_properties(**{
             'font-size': '15px',
-            'font-weight': 'bold'
+            'font-weight': 'bold',
+            'font-family': 'sans-serif'
         })
         
-        # Enforcing exact height on the dataframe widget
         st.dataframe(styled_req, height=UNIVERSAL_HEIGHT, hide_index=True, use_container_width=True)
