@@ -39,14 +39,16 @@ with st.sidebar:
         
         calculate_btn = st.form_submit_button("Calculate", type="primary", use_container_width=True)
 
-# App Title & Introduction (Option 1)
+# App Title & Introduction (Forced Uniform Font Size)
 st.title("Optimization Dashboard")
 st.markdown("""
-Welcome to the interactive **Whiskas Blending Problem** dashboard. This application demonstrates prescriptive analytics using linear programming to determine the most cost-effective recipe for cat food. 
-
-The optimization engine calculates the exact mass of six different ingredients required to minimize production costs while strictly adhering to targeted nutritional constraints (Protein, Fat, Fibre, and Salt). Use the **What-If Analysis** panel on the left to simulate market volatility and instantly see how fluctuating ingredient costs impact the optimized portfolio and bottom line.
----
-""")
+<div style="font-size: 18px;">
+Welcome to the interactive <b>Whiskas Blending Problem</b> dashboard. This application demonstrates prescriptive analytics using linear programming to determine the most cost-effective recipe for cat food. 
+<br><br>
+The optimization engine calculates the exact mass of six different ingredients required to minimize production costs while strictly adhering to targeted nutritional constraints (Protein, Fat, Fibre, and Salt). Use the <b>What-If Analysis</b> panel on the left to simulate market volatility and instantly see how fluctuating ingredient costs impact the optimized portfolio and bottom line.
+</div>
+<hr>
+""", unsafe_allow_html=True)
 
 # ----------------------------------------------------
 # Data & PuLP Optimization Model
