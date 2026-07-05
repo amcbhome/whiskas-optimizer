@@ -7,18 +7,10 @@ import plotly.graph_objects as go
 # Set up page configurations
 st.set_page_config(page_title="Whiskas Optimizer", layout="wide", initial_sidebar_state="expanded")
 
-# Custom CSS for the 4-quadrant Card layout and matching the visual theme
+# Custom CSS for the overall background
 st.markdown("""
     <style>
     .stApp { background-color: #f8f9fa; }
-    div[data-testid="stVerticalBlock"] > div:has(div.card-wrapper) {
-        background-color: #ffffff;
-        padding: 20px;
-        border-radius: 8px;
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-        border: 1px solid #e1e4e8;
-        margin-bottom: 15px;
-    }
     </style>
     """, unsafe_allow_html=True)
 
@@ -40,13 +32,12 @@ st.title("Optimization Dashboard")
 # ----------------------------------------------------
 # Data & PuLP Optimization Model (6 Ingredients)
 # ----------------------------------------------------
-# Expanded ingredient dictionary including a mock "Risk Factor" 
 data = {
     "Ingredient": ["Chicken", "Beef", "Mutton", "Rice", "Wheat", "Gel"],
     "Cost": [0.013, 0.008, 0.010, 0.002, 0.005, 0.001],
     "Protein": [0.100, 0.200, 0.150, 0.000, 0.040, 0.000],
     "Fat": [0.080, 0.100, 0.110, 0.010, 0.010, 0.000],
-    "Risk_Score": [0.05, 0.08, 0.06, 0.02, 0.03, 0.01] # e.g., supply chain volatility
+    "Risk_Score": [0.05, 0.08, 0.06, 0.02, 0.03, 0.01] 
 }
 df = pd.DataFrame(data)
 
@@ -84,7 +75,6 @@ for i in df.index:
     actual_fat += val * df.loc[i, "Fat"]
     total_risk += risk_contrib
     
-    # Capture all 6 ingredients to ensure they all show up on the horizontal bar chart
     results.append({
         "Ingredient": ing, 
         "Percentage": val, 
@@ -107,15 +97,13 @@ col1, col2 = st.columns(2, gap="medium")
 
 # Quadrant 1: Optimised Cost (Top Left)
 with col1:
-    with st.container():
-        st.markdown('<div class="card-wrapper"></div>', unsafe_allow_html=True)
+    with st.container(border=True):
         st.subheader("Optimised Cost")
         
-        # Using a Plotly Indicator to give it a highly graphical feel instead of a plain metric
         fig1 = go.Figure(go.Indicator(
             mode = "number+delta",
             value = optimized_cost,
-            number = {'prefix': "£", 'valueformat': ".2f"},
+            number = {'prefix': "£", 'valueformat': ".2f", 'font': {'weight': 'bold'}},
             delta = {'position': "bottom", 'reference': 1.50, 'relative': False, 'valueformat': ".2f"},
             title = {"text": "Cost per 100g Can<br><span style='font-size:0.8em;color:gray'>vs Benchmark (£1.50)</span>"}
         ))
@@ -124,18 +112,18 @@ with col1:
 
 # Quadrant 2: Cost Breakdown (Top Right)
 with col2:
-    with st.container():
-        st.markdown('<div class="card-wrapper"></div>', unsafe_allow_html=True)
+    with st.container(border=True):
         st.subheader("Cost Breakdown by Ingredient")
         
-        # Horizontal bar chart sorted by highest cost contribution at the top
         fig2 = px.bar(df_res, 
                       x="Cost_Contribution", 
                       y="Ingredient", 
                       orientation='h',
-                      text_auto='.3f', 
                       color="Ingredient",
                       color_discrete_sequence=teal_palette)
+        
+        # Adding bold formatting to the numerical output on the bars
+        fig2.update_traces(texttemplate='<b>%{x:.3f}</b>', textposition='inside')
         
         fig2.update_layout(
             showlegend=False, 
@@ -147,29 +135,26 @@ with col2:
         )
         st.plotly_chart(fig2, use_container_width=True)
 
-
 # BOTTOM ROW
 col3, col4 = st.columns(2, gap="medium")
 
 # Quadrant 3: Optimised Risk (Bottom Left)
 with col3:
-    with st.container():
-        st.markdown('<div class="card-wrapper"></div>', unsafe_allow_html=True)
+    with st.container(border=True):
         st.subheader("Optimised Risk Portfolio")
         
-        # Filter out 0-value ingredients specifically for the Pie chart to keep it clean
         fig3 = px.pie(df_res[df_res["Risk_Contribution"] > 0], values="Risk_Contribution", names="Ingredient", hole=0.4,
                       color_discrete_sequence=teal_palette)
-        fig3.update_traces(textposition='inside', textinfo='percent+label')
+        
+        # Making the pie chart percentage text bold
+        fig3.update_traces(textposition='inside', texttemplate='<b>%{percent:.1%}</b><br>%{label}')
         fig3.update_layout(showlegend=False, height=280, margin=dict(t=10, b=10, l=10, r=10))
-        # Adding a central annotation for the total risk score
         fig3.add_annotation(text=f"Total Risk<br><b>{total_risk:.1f}</b>", x=0.5, y=0.5, showarrow=False)
         st.plotly_chart(fig3, use_container_width=True)
 
 # Quadrant 4: Nutrient Target vs Actual (Bottom Right)
 with col4:
-    with st.container():
-        st.markdown('<div class="card-wrapper"></div>', unsafe_allow_html=True)
+    with st.container(border=True):
         st.subheader("Nutrient Targets (g)")
         
         nutrients = ['Protein', 'Fat']
@@ -177,8 +162,10 @@ with col4:
         actuals = [actual_protein, actual_fat]
 
         fig4 = go.Figure(data=[
-            go.Bar(name='Target Requirement', x=nutrients, y=targets, marker_color='#c6f7d0'),
-            go.Bar(name='Actual Achieved', x=nutrients, y=actuals, marker_color='#114b5f')
+            go.Bar(name='Target Requirement', x=nutrients, y=targets, marker_color='#c6f7d0', 
+                   text=[f'<b>{val:.1f}</b>' for val in targets], textposition='auto'),
+            go.Bar(name='Actual Achieved', x=nutrients, y=actuals, marker_color='#114b5f',
+                   text=[f'<b>{val:.1f}</b>' for val in actuals], textposition='auto')
         ])
         fig4.update_layout(barmode='group', height=280, margin=dict(t=10, b=10, l=10, r=10),
                            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1))
