@@ -148,17 +148,18 @@ with col2:
 # BOTTOM ROW
 col3, col4 = st.columns(2, gap="medium")
 
-# Quadrant 3: Optimised Risk (Bottom Left)
+# Quadrant 3: Optimised Ingredient Mix (Bottom Left)
 with col3:
     with st.container(border=True):
-        st.subheader("Optimised Risk Portfolio")
+        st.subheader("Optimised Ingredient Mix")
         
-        fig3 = px.pie(df_res[df_res["Risk_Contribution"] > 0], values="Risk_Contribution", names="Ingredient", hole=0.4,
+        # Switched values to Percentage to show the mix, removed hole parameter to make it a pie chart
+        fig3 = px.pie(df_res[df_res["Percentage"] > 0], values="Percentage", names="Ingredient", 
                       color_discrete_sequence=teal_palette)
         
-        fig3.update_traces(textposition='inside', texttemplate='<b>%{percent:.1%}</b><br>%{label}')
+        # Clearly labeling each slice with the ingredient name and its mass
+        fig3.update_traces(textposition='inside', texttemplate='<b>%{label}</b><br>%{value:.1f}g')
         fig3.update_layout(showlegend=False, height=280, margin=dict(t=10, b=10, l=10, r=10))
-        fig3.add_annotation(text=f"Total Risk<br><b>{total_risk:.1f}</b>", x=0.5, y=0.5, showarrow=False)
         st.plotly_chart(fig3, use_container_width=True)
 
 # Quadrant 4: Nutrient grams per 100g tin (Bottom Right)
@@ -166,7 +167,6 @@ with col4:
     with st.container(border=True):
         st.subheader("Nutrient grams per 100g tin")
         
-        # Package the 4 nutrients into a DataFrame to easily sort them
         nutrients_data = {
             'Nutrient': ['Protein', 'Fat', 'Fibre', 'Salt'],
             'Target Requirement': [min_protein, min_fat, max_fibre, max_salt],
@@ -174,7 +174,6 @@ with col4:
         }
         df_nut = pd.DataFrame(nutrients_data)
         
-        # Sort ascending so the highest value sits at the top of the horizontal bar chart
         df_nut = df_nut.sort_values(by='Actual Achieved', ascending=True)
 
         fig4 = go.Figure(data=[
