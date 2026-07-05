@@ -119,4 +119,62 @@ if pulp.LpStatus[prob.status] == 'Optimal':
         })
         
         # Filter out 0g items so their text labels don't overlap on the chart
-        df_mix_chart = df_
+        df_mix_chart = df_mix[df_mix['Grams'] > 0]
+        
+        # Define Custom Color Palette 
+        neon_colors = ["#A678E2", "#FFFC99", "#8EE6D5", "#98E68D", "#89E6E3", "#94E2E0"] 
+        custom_scale = alt.Scale(domain=df_mix['Ingredient'].tolist(), range=neon_colors[:len(Ingredients)])
+
+        # 1. Create bare Base chart (No properties attached yet)
+        base = alt.Chart(df_mix_chart).encode(
+            theta=alt.Theta("Grams:Q", stack=True),
+            color=alt.Color("Ingredient:N", scale=custom_scale, legend=alt.Legend(title="Ingredients", orient="right", titleColor="#ffffff", labelColor="#ffffff")),
+            order=alt.Order("Grams:Q", sort="descending"),
+            tooltip=["Ingredient:N", alt.Tooltip("Percent:Q", format=".1f%%"), alt.Tooltip("Grams:Q", format=".1fg")]
+        )
+        
+        # 2. Define the marks
+        doughnut = base.mark_arc(innerRadius=60, stroke="#3e3e42", strokeWidth=1)
+        text = base.mark_text(radius=80, fill="#ffffff", fontSize=12).encode(
+            text=alt.Text("Percent:Q", format=".1f%%")
+        )
+        
+        # 3. Layer them, and THEN apply properties to the parent object
+        chart_final = alt.layer(doughnut, text).properties(
+            title={"text": "Ingredient % Breakdown", "color": "#e5f396", "fontSize": 16},
+            background="#262628" 
+        ).configure_view(strokeWidth=0)
+        
+        st.altair_chart(chart_final, use_container_width=True)
+
+    # Column B: The grid of individual metric cards for grams
+    with mix_metrics_col:
+        mix_grid_cols = st.columns(6)
+        for idx, ing in enumerate(Ingredients):
+            with mix_grid_cols[idx]:
+                val = x[ing].varValue
+                display_val = max(0.0, val)
+                st.metric(label=ing.replace("_", " "), value=f"{display_val:.1f}g")
+
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    # Third Row: Final Nutritional Values vs Constraints
+    st.subheader("Nutritional Breakdown")
+    nut_col1, nut_col2, nut_col3, nut_col4 = st.columns(4)
+    
+    final_prot = sum([protein[i] * max(0.0, x[i].varValue) for i in Ingredients])
+    final_fat = sum([fat[i] * max(0.0, x[i].varValue) for i in Ingredients])
+    final_fib = sum([fibre[i] * max(0.0, x[i].varValue) for i in Ingredients])
+    final_salt = sum([salt[i] * max(0.0, x[i].varValue) for i in Ingredients])
+    
+    with nut_col1:
+        st.metric(label="Total Protein (g)", value=f"{final_prot:.2f}", delta=f"Min: {req_protein}", delta_color="off")
+    with nut_col2:
+        st.metric(label="Total Fat (g)", value=f"{final_fat:.2f}", delta=f"Min: {req_fat}", delta_color="off")
+    with nut_col3:
+        st.metric(label="Total Fibre (g)", value=f"{final_fib:.2f}", delta=f"Max: {max_fibre}", delta_color="inverse")
+    with nut_col4:
+        st.metric(label="Total Salt (g)", value=f"{final_salt:.3f}", delta=f"Max: {max_salt}", delta_color="inverse")
+
+else:
+    st.error("No optimal solution found with the current constraints. Try relaxing the limits in the sidebar.")
