@@ -135,11 +135,9 @@ with col2:
     with st.container(border=True):
         st.subheader("Cost breakdown of 6 ingredients")
         
-        # Construct the table data
         table_rows = []
         for index, row in df_res.iterrows():
             ing = row['Ingredient']
-            # Fetch unit cost from the original dictionary/dataframe
             unit_cost = df.loc[df['Ingredient'] == ing, 'Cost'].values[0]
             
             table_rows.append({
@@ -151,7 +149,6 @@ with col2:
         
         df_table = pd.DataFrame(table_rows)
         
-        # Append Grand Total row
         grand_total_row = pd.DataFrame([{
             "Ingredient": "Grand Total",
             "g": 100.0,
@@ -160,10 +157,7 @@ with col2:
         }])
         df_table = pd.concat([df_table, grand_total_row], ignore_index=True)
         
-        # Format the 'g' column to 1 decimal place
         df_table['g'] = df_table['g'].apply(lambda x: f"{x:.1f}" if isinstance(x, float) else x)
-        
-        # Display as a Streamlit dataframe, hiding the index column for a cleaner look
         st.dataframe(df_table, hide_index=True, use_container_width=True)
 
 # BOTTOM ROW
@@ -184,16 +178,41 @@ with col3:
         fig3.update_layout(showlegend=False, height=280, margin=dict(t=10, b=10, l=10, r=10))
         st.plotly_chart(fig3, use_container_width=True)
 
-# Quadrant 4: Nutrient grams per 100g tin
+# Quadrant 4: Nutrient Requirement Table
 with col4:
     with st.container(border=True):
-        st.subheader("Nutrient grams per 100g tin")
+        st.subheader("Nutrient Requirement")
         
-        nutrients_data = {
-            'Nutrient': ['Protein', 'Fat', 'Fibre', 'Salt'],
-            'Target Requirement': [min_protein, min_fat, max_fibre, max_salt],
-            'Actual Achieved': [actual_protein, actual_fat, actual_fibre, actual_salt]
+        # Helper function to check constraints (with minor rounding for float precision issues)
+        def get_status(actual, target, is_min=True):
+            if is_min:
+                return "✔️" if round(actual, 4) >= target else "❌"
+            else:
+                return "✔️" if round(actual, 4) <= target else "❌"
+
+        req_data = {
+            "Nutrient": ["Protein", "Fat", "Fibre", "Salt"],
+            "Constraint": [
+                f">= {min_protein:.1f}g", 
+                f">= {min_fat:.1f}g", 
+                f"<= {max_fibre:.1f}g", 
+                f"<= {max_salt:.1f}g"
+            ],
+            "Actual (g)": [
+                f"{actual_protein:.2f}", 
+                f"{actual_fat:.2f}", 
+                f"{actual_fibre:.2f}", 
+                f"{actual_salt:.2f}"
+            ],
+            "Status": [
+                get_status(actual_protein, min_protein, is_min=True),
+                get_status(actual_fat, min_fat, is_min=True),
+                get_status(actual_fibre, max_fibre, is_min=False),
+                get_status(actual_salt, max_salt, is_min=False)
+            ]
         }
-        df_nut = pd.DataFrame(nutrients_data)
         
-        df_nut = df
+        df_req = pd.DataFrame(req_data)
+        
+        # Display the table, ensuring it stretches to fill the card
+        st.dataframe(df_req, hide_index=True, use_container_width=True)
