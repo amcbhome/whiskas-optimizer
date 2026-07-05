@@ -1,5 +1,7 @@
 import streamlit as st
 import pulp
+import pandas as pd
+import altair as alt
 
 # 1. Page Configuration & Custom Styling
 st.set_page_config(page_title="Whiskas Optimizer", layout="wide", initial_sidebar_state="expanded")
@@ -13,8 +15,8 @@ st.markdown("""
         color: #ffffff;
     }
     
-    /* Styling the metric cards (The Grid) */
-    [data-testid="stMetric"] {
+    /* Styling the metric cards (The Grid and New Chart Panel) */
+    [data-testid="stMetric"], [data-testid="stAltairChart"] {
         background-color: #262628;
         border: 1px solid #3e3e42;
         border-radius: 12px;
@@ -39,6 +41,11 @@ st.markdown("""
     h1, h2, h3 {
         color: #e5f396;
     }
+    
+    /* Ensure chart panel gets correct card styling */
+    [data-testid="stAltairChart"] {
+        padding: 0; /* Let Altair handle its padding */
+    }
     </style>
 """, unsafe_allow_html=True)
 
@@ -49,10 +56,10 @@ st.markdown("---")
 st.sidebar.header("Model Parameters")
 
 st.sidebar.subheader("Constraint Limits")
-req_protein = st.sidebar.number_input("Minimum Protein", value=8.0, step=0.5)
-req_fat = st.sidebar.number_input("Minimum Fat", value=6.0, step=0.5)
-max_fibre = st.sidebar.number_input("Maximum Fibre", value=2.0, step=0.1)
-max_salt = st.sidebar.number_input("Maximum Salt", value=0.4, step=0.05)
+req_protein = st.sidebar.number_input("Minimum Protein (g)", value=8.0, step=0.5)
+req_fat = st.sidebar.number_input("Minimum Fat (g)", value=6.0, step=0.5)
+max_fibre = st.sidebar.number_input("Maximum Fibre (g)", value=2.0, step=0.1)
+max_salt = st.sidebar.number_input("Maximum Salt (g)", value=0.4, step=0.05)
 
 st.sidebar.subheader("Ingredient Costs (£/g)")
 cost_beef = st.sidebar.number_input("Beef Cost", value=0.008, format="%.3f")
@@ -96,13 +103,57 @@ if pulp.LpStatus[prob.status] == 'Optimal':
     
     st.markdown("<br>", unsafe_allow_html=True)
     
-    # Second Row: Optimized Ingredient Mix
-    st.subheader("Optimized Ingredient Mix")
-    mix_cols = st.columns(6)
-    for idx, ing in enumerate(Ingredients):
-        with mix_cols[idx]:
-            val = x[ing].varValue
-            st.metric(label=ing.replace("_", " "), value=f"{val:.1f}g")
+    # Second Row: Optimized Ingredient Mix Composition (Chart + Metrics)
+    st.subheader("Optimized Mix Composition")
+    
+    # Create the 1x2 column layout for the Mix section
+    mix_chart_col, mix_metrics_col = st.columns([1, 1.5])
+    
+    # Column A: Doughnut Chart
+    with mix_chart_col:
+        # Prepare Data for Chart
+        df_mix = pd.DataFrame({
+            'Ingredient': [ing.replace("_", " ") for ing in Ingredients],
+            'Grams': [max(0.0, x[ing].varValue) for ing in Ingredients],
+            'Percent': [max(0.0, x[ing].varValue) for ing in Ingredients] # Grams/100 * 100 is just Grams
+        })
+        
+        # Define Custom Color Palette (Neon yellow and purple, matching aesthetic)
+        neon_colors = ["#A678E2", "#FFFC99", "#8EE6D5", "#98E68D", "#89E6E3", "#94E2E0"] # Various Purples and Yellows
+        custom_scale = alt.Scale(domain=df_mix['Ingredient'].tolist(), range=neon_colors[:len(Ingredients)])
+
+        # Create Doughnut Chart
+        base = alt.Chart(df_mix).encode(
+            theta=alt.Theta("Grams", stack=True),
+            color=alt.Color("Ingredient", scale=custom_scale, legend=alt.Legend(title="Ingredients", orient="right", titleColor="#ffffff", labelColor="#ffffff")),
+            order=alt.Order("Grams", sort="descending"),
+            tooltip=["Ingredient", alt.Tooltip("Percent", format=".1f%%"), alt.Tooltip("Grams", format=".1fg")]
+        ).properties(
+            title={"text": "Ingredient % Breakdown", "color": "#e5f396", "fontSize": 16},
+            background="#262628" # Match card background
+        )
+        
+        doughnut = base.mark_arc(innerRadius=60, stroke="#3e3e42", strokeWidth=1).interactive()
+        
+        # Add labels directly to the segments
+        text = doughnut.mark_text(radius=80, fill="#ffffff", fontSize=12).encode(
+            text=alt.Text("Percent", format=".1f%%"),
+            order=alt.Order("Grams", sort="descending")
+        )
+        
+        chart_final = (doughnut + text).configure_view(strokeWidth=0).configure_title(fontSize=18, color="#e5f396", anchor='start')
+        
+        st.altair_chart(chart_final, use_container_width=True)
+
+    # Column B: The grid of individual metric cards for grams
+    with mix_metrics_col:
+        mix_grid_cols = st.columns(6)
+        for idx, ing in enumerate(Ingredients):
+            with mix_grid_cols[idx]:
+                val = x[ing].varValue
+                # Ensure no small negative numbers from solver
+                display_val = max(0.0, val)
+                st.metric(label=ing.replace("_", " "), value=f"{display_val:.1f}g")
 
     st.markdown("<br>", unsafe_allow_html=True)
 
@@ -110,19 +161,19 @@ if pulp.LpStatus[prob.status] == 'Optimal':
     st.subheader("Nutritional Breakdown")
     nut_col1, nut_col2, nut_col3, nut_col4 = st.columns(4)
     
-    final_prot = sum([protein[i] * x[i].varValue for i in Ingredients])
-    final_fat = sum([fat[i] * x[i].varValue for i in Ingredients])
-    final_fib = sum([fibre[i] * x[i].varValue for i in Ingredients])
-    final_salt = sum([salt[i] * x[i].varValue for i in Ingredients])
+    final_prot = sum([protein[i] * max(0.0, x[i].varValue) for i in Ingredients])
+    final_fat = sum([fat[i] * max(0.0, x[i].varValue) for i in Ingredients])
+    final_fib = sum([fibre[i] * max(0.0, x[i].varValue) for i in Ingredients])
+    final_salt = sum([salt[i] * max(0.0, x[i].varValue) for i in Ingredients])
     
     with nut_col1:
-        st.metric(label="Total Protein", value=f"{final_prot:.2f}", delta=f"Min: {req_protein}", delta_color="off")
+        st.metric(label="Total Protein (g)", value=f"{final_prot:.2f}", delta=f"Min: {req_protein}", delta_color="off")
     with nut_col2:
-        st.metric(label="Total Fat", value=f"{final_fat:.2f}", delta=f"Min: {req_fat}", delta_color="off")
+        st.metric(label="Total Fat (g)", value=f"{final_fat:.2f}", delta=f"Min: {req_fat}", delta_color="off")
     with nut_col3:
-        st.metric(label="Total Fibre", value=f"{final_fib:.2f}", delta=f"Max: {max_fibre}", delta_color="inverse")
+        st.metric(label="Total Fibre (g)", value=f"{final_fib:.2f}", delta=f"Max: {max_fibre}", delta_color="inverse")
     with nut_col4:
-        st.metric(label="Total Salt", value=f"{final_salt:.3f}", delta=f"Max: {max_salt}", delta_color="inverse")
+        st.metric(label="Total Salt (g)", value=f"{final_salt:.3f}", delta=f"Max: {max_salt}", delta_color="inverse")
 
 else:
     st.error("No optimal solution found with the current constraints. Try relaxing the limits in the sidebar.")
