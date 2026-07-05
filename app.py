@@ -111,6 +111,8 @@ ingredient_colors = {
 # ----------------------------------------------------
 # 4-Quadrant UI Dashboard Output
 # ----------------------------------------------------
+# We set a universal height to enforce a perfect grid layout
+UNIVERSAL_HEIGHT = 320 
 
 # TOP ROW
 col1, col2 = st.columns(2, gap="medium")
@@ -127,7 +129,7 @@ with col1:
             delta = {'position': "bottom", 'reference': 1.50, 'relative': False, 'valueformat': ".2f"},
             title = {"text": "Cost per 100g Can<br><span style='font-size:0.8em;color:gray'>vs Benchmark (£1.50)</span>"}
         ))
-        fig1.update_layout(height=250, margin=dict(t=30, b=10, l=10, r=10))
+        fig1.update_layout(height=UNIVERSAL_HEIGHT, margin=dict(t=30, b=10, l=10, r=10))
         st.plotly_chart(fig1, use_container_width=True)
 
 # Quadrant 2: Cost Breakdown Table
@@ -159,13 +161,13 @@ with col2:
         
         df_table['g'] = df_table['g'].apply(lambda x: f"{x:.1f}" if isinstance(x, float) else x)
         
-        # Apply Pandas Styling to increase font size and make it bold
         styled_table = df_table.style.set_properties(**{
             'font-size': '15px',
             'font-weight': 'bold'
         })
         
-        st.dataframe(styled_table, hide_index=True, use_container_width=True)
+        # Enforcing exact height on the dataframe widget
+        st.dataframe(styled_table, height=UNIVERSAL_HEIGHT, hide_index=True, use_container_width=True)
 
 # BOTTOM ROW
 col3, col4 = st.columns(2, gap="medium")
@@ -182,7 +184,7 @@ with col3:
                       color_discrete_map=ingredient_colors) 
         
         fig3.update_traces(textposition='inside', texttemplate='<b>%{label}</b><br>%{value:.1f}%', textfont_size=18)
-        fig3.update_layout(showlegend=False, height=280, margin=dict(t=10, b=10, l=10, r=10))
+        fig3.update_layout(showlegend=False, height=UNIVERSAL_HEIGHT, margin=dict(t=10, b=10, l=10, r=10))
         st.plotly_chart(fig3, use_container_width=True)
 
 # Quadrant 4: Nutrient Requirement Table
@@ -220,10 +222,10 @@ with col4:
         
         df_req = pd.DataFrame(req_data)
         
-        # Apply Pandas Styling to increase font size and make it bold
         styled_req = df_req.style.set_properties(**{
             'font-size': '15px',
             'font-weight': 'bold'
         })
         
-        st.dataframe(styled_req, hide_index=True, use_container_width=True)
+        # Enforcing exact height on the dataframe widget
+        st.dataframe(styled_req, height=UNIVERSAL_HEIGHT, hide_index=True, use_container_width=True)
