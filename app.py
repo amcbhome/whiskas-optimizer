@@ -1,178 +1,167 @@
 import streamlit as st
 import pulp
 import pandas as pd
+import plotly.express as px
 import plotly.graph_objects as go
 
 # Set up page configurations
-st.set_page_config(page_title="Whiskas Optimizer", layout="wide")
+st.set_page_config(page_title="Whiskas Optimizer", layout="wide", initial_sidebar_state="expanded")
 
-# Custom CSS to inject to style our blocks as distinct "Cards"
+# Custom CSS for the 4-quadrant Card layout and matching the visual theme
 st.markdown("""
     <style>
-    /* Card Container Layout */
+    .stApp { background-color: #f8f9fa; }
     div[data-testid="stVerticalBlock"] > div:has(div.card-wrapper) {
         background-color: #ffffff;
-        padding: 22px;
-        border-radius: 10px;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
-        border: 1px solid #e6e9ef;
-        margin-bottom: 20px;
-    }
-    /* Hero Metric Styling */
-    div[data-testid="stMetricValue"] {
-        font-size: 2.5rem;
-        font-weight: 700;
-        color: #1f77b4;
+        padding: 20px;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        border: 1px solid #e1e4e8;
+        margin-bottom: 15px;
     }
     </style>
     """, unsafe_allow_html=True)
 
-# App Title matching your sketch
-st.title("Whiskas Optimization Dashboard")
-st.markdown("---")
+# ----------------------------------------------------
+# Sidebar Navigation (Matching the image layout)
+# ----------------------------------------------------
+with st.sidebar:
+    st.title("🪶 Feather")
+    st.markdown("---")
+    st.button("⬛ Dashboard", use_container_width=True, type="primary")
+    st.button("👥 Team", use_container_width=True)
+    st.button("📁 Folders", use_container_width=True)
+    st.button("📊 Reports", use_container_width=True)
+    st.button("⚙️ Settings", use_container_width=True)
+
+# App Title
+st.title("Optimization Dashboard")
 
 # ----------------------------------------------------
-# Editable Data Input Tables (Replacing Sliders)
+# Data & PuLP Optimization Model (6 Ingredients)
 # ----------------------------------------------------
-st.subheader("📋 Input parameters & Specifications")
+# Expanded ingredient dictionary including a mock "Risk Factor" 
+data = {
+    "Ingredient": ["Chicken", "Beef", "Mutton", "Rice", "Wheat", "Gel"],
+    "Cost": [0.013, 0.008, 0.010, 0.002, 0.005, 0.001],
+    "Protein": [0.100, 0.200, 0.150, 0.000, 0.040, 0.000],
+    "Fat": [0.080, 0.100, 0.110, 0.010, 0.010, 0.000],
+    "Risk_Score": [0.05, 0.08, 0.06, 0.02, 0.03, 0.01] # e.g., supply chain volatility
+}
+df = pd.DataFrame(data)
 
-col_input1, col_input2 = st.columns(2, gap="large")
+min_protein = 8.0
+min_fat = 6.0
 
-with col_input1:
-    st.markdown("**Ingredient Matrix (Edit Costs & Nutritional Values)**")
-    # Default Whiskas problem numbers mapped to an editable dataframe
-    default_ingredients = {
-        "Ingredient": ["Chicken", "Beef"],
-        "Cost (£/g)": [0.013, 0.008],
-        "Protein (%)": [10.0, 20.0],
-        "Fat (%)": [8.0, 10.0]
-    }
-    df_ingredients = pd.DataFrame(default_ingredients)
-    # st.data_editor lets users directly click cells and type new values
-    edited_ingredients = st.data_editor(df_ingredients, num_rows="fixed", use_container_width=True, hide_index=True)
+# Initialize Model
+prob = pulp.LpProblem("Whiskas_6_Ingredient", pulp.LpMinimize)
+ingredient_vars = pulp.LpVariable.dicts("Ing", df["Ingredient"], lowBound=0, upBound=100)
 
-with col_input2:
-    st.markdown("**Minimum Requirements (Edit Constraints)**")
-    default_constraints = {
-        "Nutrient Target": ["Minimum Protein Required", "Minimum Fat Required"],
-        "Target Percentage (%)": [8.0, 6.0]
-    }
-    df_constraints = pd.DataFrame(default_constraints)
-    edited_constraints = st.data_editor(df_constraints, num_rows="fixed", use_container_width=True, hide_index=True)
+# Objective: Minimize Cost
+prob += pulp.lpSum([df.loc[i, "Cost"] * ingredient_vars[df.loc[i, "Ingredient"]] for i in df.index]), "Total_Cost"
 
-# ----------------------------------------------------
-# Calculation Trigger Button
-# ----------------------------------------------------
-st.markdown("---")
-calculate_clicked = st.button("🚀 Calculate Optimization", type="primary", use_container_width=True)
+# Constraints
+prob += pulp.lpSum([ingredient_vars[ing] for ing in df["Ingredient"]]) == 100, "PercentagesSum"
+prob += pulp.lpSum([df.loc[i, "Protein"] * ingredient_vars[df.loc[i, "Ingredient"]] for i in df.index]) >= min_protein, "MinProtein"
+prob += pulp.lpSum([df.loc[i, "Fat"] * ingredient_vars[df.loc[i, "Ingredient"]] for i in df.index]) >= min_fat, "MinFat"
 
-# We use streamlit's session state to keep results on screen after clicking calculate
-if "optimized" not in st.session_state:
-    st.session_state.optimized = False
+# Solve
+prob.solve(pulp.PULP_CBC_CMD(msg=False))
 
-if calculate_clicked:
-    # 1. Parse data out of the editable dataframes
-    cost_chicken = edited_ingredients.iloc[0]["Cost (£/g)"]
-    prot_chicken = edited_ingredients.iloc[0]["Protein (%)"] / 100.0
-    fat_chicken = edited_ingredients.iloc[0]["Fat (%)"] / 100.0
+# Extract Results
+results = []
+total_risk = 0
+actual_protein = 0
+actual_fat = 0
 
-    cost_beef = edited_ingredients.iloc[1]["Cost (£/g)"]
-    prot_beef = edited_ingredients.iloc[1]["Protein (%)"] / 100.0
-    fat_beef = edited_ingredients.iloc[1]["Fat (%)"] / 100.0
-
-    min_protein = edited_constraints.iloc[0]["Target Percentage (%)"]
-    min_fat = edited_constraints.iloc[1]["Target Percentage (%)"]
-
-    # 2. Setup and run the PuLP optimization problem
-    prob = pulp.LpProblem("The_Whiskas_Problem", pulp.LpMinimize)
-    x1 = pulp.LpVariable("ChickenPercent", lowBound=0, upBound=100)
-    x2 = pulp.LpVariable("BeefPercent", lowBound=0, upBound=100)
-
-    # Objective function
-    prob += cost_chicken * x1 + cost_beef * x2, "Total_Cost_per_Can"
+for i in df.index:
+    ing = df.loc[i, "Ingredient"]
+    val = ingredient_vars[ing].varValue
+    cost_contrib = val * df.loc[i, "Cost"]
+    risk_contrib = val * df.loc[i, "Risk_Score"]
     
-    # Constraints
-    prob += x1 + x2 == 100, "Percentage_Sum_Constraint"
-    prob += prot_chicken * x1 + prot_beef * x2 >= min_protein, "Protein_Constraint"
-    prob += fat_chicken * x1 + fat_beef * x2 >= min_fat, "Fat_Constraint"
+    actual_protein += val * df.loc[i, "Protein"]
+    actual_fat += val * df.loc[i, "Fat"]
+    total_risk += risk_contrib
+    
+    if val > 0:
+        results.append({"Ingredient": ing, "Percentage": val, "Cost_Contribution": cost_contrib, "Risk_Contribution": risk_contrib})
 
-    status = prob.solve(pulp.PULP_CBC_CMD(msg=False))
+df_res = pd.DataFrame(results)
+optimized_cost = pulp.value(prob.objective)
 
-    # Save results to session state
-    if pulp.LpStatus[status] == "Optimal":
-        st.session_state.opt_chicken = round(x1.varValue, 1)
-        st.session_state.opt_beef = round(x2.varValue, 1)
-        st.session_state.total_cost = round(pulp.value(prob.objective), 2)
-        st.session_state.achieved_protein = (prot_chicken * 100 * st.session_state.opt_chicken / 100) + (prot_beef * 100 * st.session_state.opt_beef / 100)
-        st.session_state.achieved_fat = (fat_chicken * 100 * st.session_state.opt_chicken / 100) + (fat_beef * 100 * st.session_state.opt_beef / 100)
-        st.session_state.min_p = min_protein
-        st.session_state.min_f = min_fat
-        st.session_state.optimized = True
-    else:
-        st.session_state.optimized = "Failed"
+# Define Theme Colors
+teal_palette = ['#1a936f', '#114b5f', '#45c4a0', '#88d49e', '#0a2e36', '#c6f7d0']
 
 # ----------------------------------------------------
-# UI Dashboard Output Layout (Cards Architecture)
+# 4-Quadrant UI Dashboard Output
 # ----------------------------------------------------
-if st.session_state.optimized == True:
-    st.markdown("### 📊 Optimization Results")
-    col_mix, col_details = st.columns([2, 3], gap="large")
 
-    # LEFT COLUMN CARD: The "Mix" Donut Chart Card from sketch
-    with col_mix:
-        with st.container():
-            st.markdown('<div class="card-wrapper"></div>', unsafe_allow_html=True)
-            st.subheader("Mix")
-            
-            labels = ['Chicken', 'Beef']
-            values = [st.session_state.opt_chicken, st.session_state.opt_beef]
-            
-            fig = go.Figure(data=[go.Pie(
-                labels=labels, 
-                values=values, 
-                hole=0.5, # Custom Donut Hole from sketch
-                marker=dict(colors=['#ff9999', '#66b3ff']),
-                textinfo='percent+label'
-            )])
-            
-            fig.update_layout(
-                showlegend=True,
-                legend=dict(orientation="h", yanchor="bottom", y=-0.2, xanchor="center", x=0.5),
-                margin=dict(t=10, b=10, l=10, r=10),
-                height=300
-            )
-            st.plotly_chart(fig, use_container_width=True)
+# TOP ROW
+col1, col2 = st.columns(2, gap="medium")
 
-    # RIGHT COLUMN CARDS: Vertically stacked cards matching your sketch template
-    with col_details:
+# Quadrant 1: Optimised Cost (Top Left)
+with col1:
+    with st.container():
+        st.markdown('<div class="card-wrapper"></div>', unsafe_allow_html=True)
+        st.subheader("Optimised Cost")
         
-        # CARD 1: Unit Cost Card
-        with st.container():
-            st.markdown('<div class="card-wrapper"></div>', unsafe_allow_html=True)
-            st.metric(
-                label="Unit Cost (per Can)", 
-                value=f"£{st.session_state.total_cost:,.2f}"
-            )
+        # Using a Plotly Indicator to give it a highly graphical feel instead of a plain metric
+        fig1 = go.Figure(go.Indicator(
+            mode = "number+delta",
+            value = optimized_cost,
+            number = {'prefix': "£", 'valueformat': ".2f"},
+            delta = {'position': "bottom", 'reference': 1.50, 'relative': False, 'valueformat': ".2f"},
+            title = {"text": "Cost per 100g Can<br><span style='font-size:0.8em;color:gray'>vs Benchmark (£1.50)</span>"}
+        ))
+        fig1.update_layout(height=250, margin=dict(t=30, b=10, l=10, r=10))
+        st.plotly_chart(fig1, use_container_width=True)
+
+# Quadrant 2: Cost Breakdown (Top Right)
+with col2:
+    with st.container():
+        st.markdown('<div class="card-wrapper"></div>', unsafe_allow_html=True)
+        st.subheader("Cost Breakdown by Ingredient")
         
-        # CARD 2: Ingredients Allocation Table
-        with st.container():
-            st.markdown('<div class="card-wrapper"></div>', unsafe_allow_html=True)
-            st.subheader("Ingredients")
-            ingredients_data = {
-                "Ingredient": ["Chicken", "Beef"],
-                "Optimal Ratio": [f"{st.session_state.opt_chicken}%", f"{st.session_state.opt_beef}%"],
-                "Mass (per 100g can)": [f"{st.session_state.opt_chicken}g", f"{st.session_state.opt_beef}g"]
-            }
-            st.table(pd.DataFrame(ingredients_data))
+        fig2 = px.bar(df_res, x="Ingredient", y="Cost_Contribution", 
+                      text_auto='.3f', color="Ingredient",
+                      color_discrete_sequence=teal_palette)
+        fig2.update_layout(showlegend=False, height=250, margin=dict(t=10, b=10, l=10, r=10),
+                           xaxis_title=None, yaxis_title="Cost (£)")
+        st.plotly_chart(fig2, use_container_width=True)
 
-        # CARD 3: Nutrients Target Verification
-        with st.container():
-            st.markdown('<div class="card-wrapper"></div>', unsafe_allow_html=True)
-            st.subheader("Nutrients")
-            st.success(f"✔️ Protein Content: {st.session_state.achieved_protein:.1f}% (Required: ≥ {st.session_state.min_p}%)")
-            st.success(f"✔️ Crude Fat Content: {st.session_state.achieved_fat:.1f}% (Required: ≥ {st.session_state.min_f}%)")
 
-elif st.session_state.optimized == "Failed":
-    st.error("❌ The linear constraints are impossible to fulfill with current parameters. Please adjust your input matrices and click Calculate again.")
-else:
-    st.info("💡 Adjust the metrics in the tables above if desired, then click 'Calculate Optimization' to view the optimal blend results.")
+# BOTTOM ROW
+col3, col4 = st.columns(2, gap="medium")
+
+# Quadrant 3: Optimised Risk (Bottom Left)
+with col3:
+    with st.container():
+        st.markdown('<div class="card-wrapper"></div>', unsafe_allow_html=True)
+        st.subheader("Optimised Risk Portfolio")
+        
+        fig3 = px.pie(df_res, values="Risk_Contribution", names="Ingredient", hole=0.4,
+                      color_discrete_sequence=teal_palette)
+        fig3.update_traces(textposition='inside', textinfo='percent+label')
+        fig3.update_layout(showlegend=False, height=280, margin=dict(t=10, b=10, l=10, r=10))
+        # Adding a central annotation for the total risk score
+        fig3.add_annotation(text=f"Total Risk<br><b>{total_risk:.1f}</b>", x=0.5, y=0.5, showarrow=False)
+        st.plotly_chart(fig3, use_container_width=True)
+
+# Quadrant 4: Nutrient Target vs Actual (Bottom Right)
+with col4:
+    with st.container():
+        st.markdown('<div class="card-wrapper"></div>', unsafe_allow_html=True)
+        st.subheader("Nutrient Targets (g)")
+        
+        nutrients = ['Protein', 'Fat']
+        targets = [min_protein, min_fat]
+        actuals = [actual_protein, actual_fat]
+
+        fig4 = go.Figure(data=[
+            go.Bar(name='Target Requirement', x=nutrients, y=targets, marker_color='#c6f7d0'),
+            go.Bar(name='Actual Achieved', x=nutrients, y=actuals, marker_color='#114b5f')
+        ])
+        fig4.update_layout(barmode='group', height=280, margin=dict(t=10, b=10, l=10, r=10),
+                           legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1))
+        st.plotly_chart(fig4, use_container_width=True)
