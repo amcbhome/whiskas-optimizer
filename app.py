@@ -115,7 +115,7 @@ if pulp.LpStatus[prob.status] == 'Optimal':
         df_mix = pd.DataFrame({
             'Ingredient': [ing.replace("_", " ") for ing in Ingredients],
             'Grams': [max(0.0, x[ing].varValue) for ing in Ingredients],
-            'Percent': [max(0.0, x[ing].varValue) for ing in Ingredients] # Grams/100 * 100 is just Grams
+            'Percent': [max(0.0, x[ing].varValue) for ing in Ingredients] 
         })
         
         # Define Custom Color Palette (Neon yellow and purple, matching aesthetic)
@@ -130,12 +130,13 @@ if pulp.LpStatus[prob.status] == 'Optimal':
             tooltip=["Ingredient", alt.Tooltip("Percent", format=".1f%%"), alt.Tooltip("Grams", format=".1fg")]
         ).properties(
             title={"text": "Ingredient % Breakdown", "color": "#e5f396", "fontSize": 16},
-            background="#262628" # Match card background
+            background="#262628" 
         )
         
-        doughnut = base.mark_arc(innerRadius=60, stroke="#3e3e42", strokeWidth=1).interactive()
+        # REMOVED .interactive() FROM THIS LINE
+        doughnut = base.mark_arc(innerRadius=60, stroke="#3e3e42", strokeWidth=1)
         
-        # Add labels directly to the segments (FIX APPLIED HERE)
+        # Add labels directly to the segments
         text = base.mark_text(radius=80, fill="#ffffff", fontSize=12).encode(
             text=alt.Text("Percent", format=".1f%%"),
             order=alt.Order("Grams", sort="descending")
@@ -161,19 +162,4 @@ if pulp.LpStatus[prob.status] == 'Optimal':
     st.subheader("Nutritional Breakdown")
     nut_col1, nut_col2, nut_col3, nut_col4 = st.columns(4)
     
-    final_prot = sum([protein[i] * max(0.0, x[i].varValue) for i in Ingredients])
-    final_fat = sum([fat[i] * max(0.0, x[i].varValue) for i in Ingredients])
-    final_fib = sum([fibre[i] * max(0.0, x[i].varValue) for i in Ingredients])
-    final_salt = sum([salt[i] * max(0.0, x[i].varValue) for i in Ingredients])
-    
-    with nut_col1:
-        st.metric(label="Total Protein (g)", value=f"{final_prot:.2f}", delta=f"Min: {req_protein}", delta_color="off")
-    with nut_col2:
-        st.metric(label="Total Fat (g)", value=f"{final_fat:.2f}", delta=f"Min: {req_fat}", delta_color="off")
-    with nut_col3:
-        st.metric(label="Total Fibre (g)", value=f"{final_fib:.2f}", delta=f"Max: {max_fibre}", delta_color="inverse")
-    with nut_col4:
-        st.metric(label="Total Salt (g)", value=f"{final_salt:.3f}", delta=f"Max: {max_salt}", delta_color="inverse")
-
-else:
-    st.error("No optimal solution found with the current constraints. Try relaxing the limits in the sidebar.")
+    final_prot = sum
