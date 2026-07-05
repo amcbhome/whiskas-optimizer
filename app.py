@@ -15,13 +15,14 @@ st.markdown("""
         color: #ffffff;
     }
     
-    /* Styling the metric cards (The Grid and New Chart Panel) */
+    /* Styling the metric cards (The Grid and Chart Panel) */
     [data-testid="stMetric"], [data-testid="stAltairChart"] {
         background-color: #262628;
         border: 1px solid #3e3e42;
         border-radius: 12px;
         padding: 15px 20px;
         box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        height: 100%; /* Ensures all cards stretch equally */
     }
     
     /* Metric Labels */
@@ -29,6 +30,7 @@ st.markdown("""
         color: #e5f396 !important;
         font-size: 1.1rem !important;
         font-weight: 600;
+        white-space: nowrap; /* Prevents awkward text wrapping on smaller screens */
     }
     
     /* Metric Values */
@@ -103,78 +105,82 @@ if pulp.LpStatus[prob.status] == 'Optimal':
     
     st.markdown("<br>", unsafe_allow_html=True)
     
-    # Second Row: Optimized Ingredient Mix Composition (Chart + Metrics)
-    st.subheader("Optimized Mix Composition")
-    
-    # Create the 1x2 column layout for the Mix section
+    # Main Dashboard Area (1x2 column layout)
     mix_chart_col, mix_metrics_col = st.columns([1, 1.5])
     
-    # Column A: Doughnut Chart
+    # Left Column: Doughnut Chart
     with mix_chart_col:
+        st.subheader("Mix Composition")
+        
         # Prepare Data for Chart
         df_mix = pd.DataFrame({
             'Ingredient': [ing.replace("_", " ") for ing in Ingredients],
-            'Grams': [max(0.0, x[ing].varValue) for ing in Ingredients],
-            'Percent': [max(0.0, x[ing].varValue) for ing in Ingredients] 
+            'Grams': [max(0.0, x[ing].varValue) for ing in Ingredients]
         })
         
-        # Filter out 0g items so their text labels don't overlap on the chart
+        df_mix['Percent_Label'] = df_mix['Grams'].map('{:.1f}%'.format)
         df_mix_chart = df_mix[df_mix['Grams'] > 0]
         
-        # Define Custom Color Palette 
         neon_colors = ["#A678E2", "#FFFC99", "#8EE6D5", "#98E68D", "#89E6E3", "#94E2E0"] 
         custom_scale = alt.Scale(domain=df_mix['Ingredient'].tolist(), range=neon_colors[:len(Ingredients)])
 
-        # 1. Create bare Base chart (No properties attached yet)
         base = alt.Chart(df_mix_chart).encode(
-            theta=alt.Theta("Grams:Q", stack=True),
-            color=alt.Color("Ingredient:N", scale=custom_scale, legend=alt.Legend(title="Ingredients", orient="right", titleColor="#ffffff", labelColor="#ffffff")),
-            order=alt.Order("Grams:Q", sort="descending"),
-            tooltip=["Ingredient:N", alt.Tooltip("Percent:Q", format=".1f%%"), alt.Tooltip("Grams:Q", format=".1fg")]
+            theta=alt.Theta("Grams:Q"),
+            color=alt.Color("Ingredient:N", scale=custom_scale, legend=alt.Legend(title="Ingredients", orient="bottom", titleColor="#ffffff", labelColor="#ffffff")),
+            tooltip=["Ingredient:N", "Percent_Label:N", alt.Tooltip("Grams:Q", format=".1f")]
         )
         
-        # 2. Define the marks
         doughnut = base.mark_arc(innerRadius=60, stroke="#3e3e42", strokeWidth=1)
-        text = base.mark_text(radius=80, fill="#ffffff", fontSize=12).encode(
-            text=alt.Text("Percent:Q", format=".1f%%")
+        text = base.mark_text(radius=80, fill="#1a1a1c", fontSize=13, fontWeight="bold").encode(
+            text=alt.Text("Percent_Label:N")
         )
         
-        # 3. Layer them, and THEN apply properties to the parent object
         chart_final = alt.layer(doughnut, text).properties(
-            title={"text": "Ingredient % Breakdown", "color": "#e5f396", "fontSize": 16},
             background="#262628" 
         ).configure_view(strokeWidth=0)
         
         st.altair_chart(chart_final, use_container_width=True)
 
-    # Column B: The grid of individual metric cards for grams
+    # Right Column: Unified Metrics Grid
     with mix_metrics_col:
-        mix_grid_cols = st.columns(6)
+        
+        # --- Subsection 1: Ingredient Weights ---
+        st.subheader("Ingredient Weights")
+        
+        # Create a 3-column grid for ingredients
+        ing_cols1 = st.columns(3)
+        ing_cols2 = st.columns(3)
+        
         for idx, ing in enumerate(Ingredients):
-            with mix_grid_cols[idx]:
-                val = x[ing].varValue
-                display_val = max(0.0, val)
+            val = x[ing].varValue
+            display_val = max(0.0, val)
+            # Route first 3 ingredients to the top row, next 3 to the bottom row
+            target_col = ing_cols1[idx] if idx < 3 else ing_cols2[idx - 3]
+            with target_col:
                 st.metric(label=ing.replace("_", " "), value=f"{display_val:.1f}g")
+                
+        st.markdown("<br>", unsafe_allow_html=True)
 
-    st.markdown("<br>", unsafe_allow_html=True)
-
-    # Third Row: Final Nutritional Values vs Constraints
-    st.subheader("Nutritional Breakdown")
-    nut_col1, nut_col2, nut_col3, nut_col4 = st.columns(4)
-    
-    final_prot = sum([protein[i] * max(0.0, x[i].varValue) for i in Ingredients])
-    final_fat = sum([fat[i] * max(0.0, x[i].varValue) for i in Ingredients])
-    final_fib = sum([fibre[i] * max(0.0, x[i].varValue) for i in Ingredients])
-    final_salt = sum([salt[i] * max(0.0, x[i].varValue) for i in Ingredients])
-    
-    with nut_col1:
-        st.metric(label="Total Protein (g)", value=f"{final_prot:.2f}", delta=f"Min: {req_protein}", delta_color="off")
-    with nut_col2:
-        st.metric(label="Total Fat (g)", value=f"{final_fat:.2f}", delta=f"Min: {req_fat}", delta_color="off")
-    with nut_col3:
-        st.metric(label="Total Fibre (g)", value=f"{final_fib:.2f}", delta=f"Max: {max_fibre}", delta_color="inverse")
-    with nut_col4:
-        st.metric(label="Total Salt (g)", value=f"{final_salt:.3f}", delta=f"Max: {max_salt}", delta_color="inverse")
+        # --- Subsection 2: Nutritional Breakdown ---
+        st.subheader("Nutritional Breakdown")
+        
+        # Create an identical 3-column grid for nutritional data
+        nut_cols1 = st.columns(3)
+        nut_cols2 = st.columns(3)
+        
+        final_prot = sum([protein[i] * max(0.0, x[i].varValue) for i in Ingredients])
+        final_fat = sum([fat[i] * max(0.0, x[i].varValue) for i in Ingredients])
+        final_fib = sum([fibre[i] * max(0.0, x[i].varValue) for i in Ingredients])
+        final_salt = sum([salt[i] * max(0.0, x[i].varValue) for i in Ingredients])
+        
+        with nut_cols1[0]:
+            st.metric(label="Total Protein (g)", value=f"{final_prot:.2f}", delta=f"Min: {req_protein}", delta_color="off")
+        with nut_cols1[1]:
+            st.metric(label="Total Fat (g)", value=f"{final_fat:.2f}", delta=f"Min: {req_fat}", delta_color="off")
+        with nut_cols1[2]:
+            st.metric(label="Total Fibre (g)", value=f"{final_fib:.2f}", delta=f"Max: {max_fibre}", delta_color="inverse")
+        with nut_cols2[0]:
+            st.metric(label="Total Salt (g)", value=f"{final_salt:.3f}", delta=f"Max: {max_salt}", delta_color="inverse")
 
 else:
     st.error("No optimal solution found with the current constraints. Try relaxing the limits in the sidebar.")
