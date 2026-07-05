@@ -99,14 +99,13 @@ optimized_cost = pulp.value(prob.objective)
 # ----------------------------------------------------
 # Explicit Color Mapping
 # ----------------------------------------------------
-# Assigning specific hex codes to each ingredient so they remain consistent across all charts
 ingredient_colors = {
-    "Beef": "#c6f7d0",     # The requested light mint green
-    "Chicken": "#114b5f",  # Dark navy/cyan
-    "Gel": "#1a936f",      # Teal
-    "Mutton": "#45c4a0",   # Medium green
-    "Rice": "#88d49e",     # Soft green
-    "Wheat": "#0a2e36"     # Very dark green/black
+    "Beef": "#c6f7d0",     
+    "Chicken": "#114b5f",  
+    "Gel": "#1a936f",      
+    "Mutton": "#45c4a0",   
+    "Rice": "#88d49e",     
+    "Wheat": "#0a2e36"     
 }
 
 # ----------------------------------------------------
@@ -131,29 +130,41 @@ with col1:
         fig1.update_layout(height=250, margin=dict(t=30, b=10, l=10, r=10))
         st.plotly_chart(fig1, use_container_width=True)
 
-# Quadrant 2: Cost Breakdown
+# Quadrant 2: Cost Breakdown Table
 with col2:
     with st.container(border=True):
-        st.subheader("Cost Breakdown by Ingredient")
+        st.subheader("Cost breakdown of 6 ingredients")
         
-        fig2 = px.bar(df_res, 
-                      x="Cost_Contribution", 
-                      y="Ingredient", 
-                      orientation='h',
-                      color="Ingredient",
-                      color_discrete_map=ingredient_colors) # Applied the explicit map here
+        # Construct the table data
+        table_rows = []
+        for index, row in df_res.iterrows():
+            ing = row['Ingredient']
+            # Fetch unit cost from the original dictionary/dataframe
+            unit_cost = df.loc[df['Ingredient'] == ing, 'Cost'].values[0]
+            
+            table_rows.append({
+                "Ingredient": ing,
+                "g": row['Percentage'],
+                "Cost": f"£{unit_cost:.3f}",
+                "Total": f"£{row['Cost_Contribution']:.3f}"
+            })
         
-        fig2.update_traces(texttemplate='<b>%{x:.3f}</b>', textposition='inside')
+        df_table = pd.DataFrame(table_rows)
         
-        fig2.update_layout(
-            showlegend=False, 
-            height=250, 
-            margin=dict(t=10, b=10, l=10, r=10),
-            xaxis_title="Cost (£)", 
-            yaxis_title=None,
-            yaxis={'categoryorder':'total ascending'} 
-        )
-        st.plotly_chart(fig2, use_container_width=True)
+        # Append Grand Total row
+        grand_total_row = pd.DataFrame([{
+            "Ingredient": "Grand Total",
+            "g": 100.0,
+            "Cost": "-",
+            "Total": f"£{optimized_cost:.3f}"
+        }])
+        df_table = pd.concat([df_table, grand_total_row], ignore_index=True)
+        
+        # Format the 'g' column to 1 decimal place
+        df_table['g'] = df_table['g'].apply(lambda x: f"{x:.1f}" if isinstance(x, float) else x)
+        
+        # Display as a Streamlit dataframe, hiding the index column for a cleaner look
+        st.dataframe(df_table, hide_index=True, use_container_width=True)
 
 # BOTTOM ROW
 col3, col4 = st.columns(2, gap="medium")
@@ -167,7 +178,7 @@ with col3:
                       values="Percentage", 
                       names="Ingredient", 
                       color="Ingredient",
-                      color_discrete_map=ingredient_colors) # Applied the explicit map here
+                      color_discrete_map=ingredient_colors) 
         
         fig3.update_traces(textposition='inside', texttemplate='<b>%{label}</b><br>%{value:.1f}%', textfont_size=18)
         fig3.update_layout(showlegend=False, height=280, margin=dict(t=10, b=10, l=10, r=10))
@@ -185,26 +196,4 @@ with col4:
         }
         df_nut = pd.DataFrame(nutrients_data)
         
-        df_nut = df_nut.sort_values(by='Actual Achieved', ascending=True)
-
-        fig4 = go.Figure(data=[
-            go.Bar(name='Target Requirement', 
-                   y=df_nut['Nutrient'], 
-                   x=df_nut['Target Requirement'], 
-                   orientation='h', 
-                   marker_color='#c6f7d0', # Kept the target bars using that same light mint for cohesion
-                   text=[f'<b>{val:.1f}</b>' for val in df_nut['Target Requirement']], 
-                   textposition='auto'),
-            go.Bar(name='Actual Achieved', 
-                   y=df_nut['Nutrient'], 
-                   x=df_nut['Actual Achieved'], 
-                   orientation='h', 
-                   marker_color='#114b5f',
-                   text=[f'<b>{val:.1f}</b>' for val in df_nut['Actual Achieved']], 
-                   textposition='auto')
-        ])
-        
-        fig4.update_layout(barmode='group', height=280, margin=dict(t=10, b=10, l=10, r=10),
-                           xaxis_title="Grams (g)",
-                           legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1))
-        st.plotly_chart(fig4, use_container_width=True)
+        df_nut = df
