@@ -153,12 +153,11 @@ with col3:
     with st.container(border=True):
         st.subheader("Optimised Ingredient Mix")
         
-        # Switched values to Percentage to show the mix, removed hole parameter to make it a pie chart
         fig3 = px.pie(df_res[df_res["Percentage"] > 0], values="Percentage", names="Ingredient", 
                       color_discrete_sequence=teal_palette)
         
-        # Clearly labeling each slice with the ingredient name and its mass
-        fig3.update_traces(textposition='inside', texttemplate='<b>%{label}</b><br>%{value:.1f}g')
+        # Changed to % format and explicitly enlarged the font size
+        fig3.update_traces(textposition='inside', texttemplate='<b>%{label}</b><br>%{value:.1f}%', textfont_size=18)
         fig3.update_layout(showlegend=False, height=280, margin=dict(t=10, b=10, l=10, r=10))
         st.plotly_chart(fig3, use_container_width=True)
 
