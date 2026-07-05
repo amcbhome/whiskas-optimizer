@@ -33,14 +33,20 @@ with st.sidebar:
         
         st.markdown("---")
         
-        # New input for the benchmark cost
+        # Input for the benchmark cost
         st.markdown("**Adjust Target KPI:**")
         benchmark_cost = st.number_input("Benchmark Cost (£)", min_value=0.0, value=1.50, step=0.10, format="%.2f")
         
         calculate_btn = st.form_submit_button("Calculate", type="primary", use_container_width=True)
 
-# App Title
+# App Title & Introduction (Option 1)
 st.title("Optimization Dashboard")
+st.markdown("""
+Welcome to the interactive **Whiskas Blending Problem** dashboard. This application demonstrates prescriptive analytics using linear programming to determine the most cost-effective recipe for cat food. 
+
+The optimization engine calculates the exact mass of six different ingredients required to minimize production costs while strictly adhering to targeted nutritional constraints (Protein, Fat, Fibre, and Salt). Use the **What-If Analysis** panel on the left to simulate market volatility and instantly see how fluctuating ingredient costs impact the optimized portfolio and bottom line.
+---
+""")
 
 # ----------------------------------------------------
 # Data & PuLP Optimization Model
@@ -134,7 +140,6 @@ with col1:
     with st.container(border=True):
         st.subheader("Optimised Cost")
         
-        # Now uses the dynamic benchmark_cost variable from the sidebar
         fig1 = go.Figure(go.Indicator(
             mode = "number+delta",
             value = optimized_cost,
