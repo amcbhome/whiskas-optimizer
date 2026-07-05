@@ -30,7 +30,7 @@ with st.sidebar:
 st.title("Optimization Dashboard")
 
 # ----------------------------------------------------
-# Data & PuLP Optimization Model (6 Ingredients, 4 Nutrients)
+# Data & PuLP Optimization Model
 # ----------------------------------------------------
 data = {
     "Ingredient": ["Chicken", "Beef", "Mutton", "Rice", "Wheat", "Gel"],
@@ -96,8 +96,18 @@ for i in df.index:
 df_res = pd.DataFrame(results)
 optimized_cost = pulp.value(prob.objective)
 
-# Define Theme Colors
-teal_palette = ['#1a936f', '#114b5f', '#45c4a0', '#88d49e', '#0a2e36', '#c6f7d0']
+# ----------------------------------------------------
+# Explicit Color Mapping
+# ----------------------------------------------------
+# Assigning specific hex codes to each ingredient so they remain consistent across all charts
+ingredient_colors = {
+    "Beef": "#c6f7d0",     # The requested light mint green
+    "Chicken": "#114b5f",  # Dark navy/cyan
+    "Gel": "#1a936f",      # Teal
+    "Mutton": "#45c4a0",   # Medium green
+    "Rice": "#88d49e",     # Soft green
+    "Wheat": "#0a2e36"     # Very dark green/black
+}
 
 # ----------------------------------------------------
 # 4-Quadrant UI Dashboard Output
@@ -106,7 +116,7 @@ teal_palette = ['#1a936f', '#114b5f', '#45c4a0', '#88d49e', '#0a2e36', '#c6f7d0'
 # TOP ROW
 col1, col2 = st.columns(2, gap="medium")
 
-# Quadrant 1: Optimised Cost (Top Left)
+# Quadrant 1: Optimised Cost
 with col1:
     with st.container(border=True):
         st.subheader("Optimised Cost")
@@ -121,7 +131,7 @@ with col1:
         fig1.update_layout(height=250, margin=dict(t=30, b=10, l=10, r=10))
         st.plotly_chart(fig1, use_container_width=True)
 
-# Quadrant 2: Cost Breakdown (Top Right)
+# Quadrant 2: Cost Breakdown
 with col2:
     with st.container(border=True):
         st.subheader("Cost Breakdown by Ingredient")
@@ -131,7 +141,7 @@ with col2:
                       y="Ingredient", 
                       orientation='h',
                       color="Ingredient",
-                      color_discrete_sequence=teal_palette)
+                      color_discrete_map=ingredient_colors) # Applied the explicit map here
         
         fig2.update_traces(texttemplate='<b>%{x:.3f}</b>', textposition='inside')
         
@@ -148,20 +158,22 @@ with col2:
 # BOTTOM ROW
 col3, col4 = st.columns(2, gap="medium")
 
-# Quadrant 3: Optimised Ingredient Mix (Bottom Left)
+# Quadrant 3: Optimised Ingredient Mix
 with col3:
     with st.container(border=True):
         st.subheader("Optimised Ingredient Mix")
         
-        fig3 = px.pie(df_res[df_res["Percentage"] > 0], values="Percentage", names="Ingredient", 
-                      color_discrete_sequence=teal_palette)
+        fig3 = px.pie(df_res[df_res["Percentage"] > 0], 
+                      values="Percentage", 
+                      names="Ingredient", 
+                      color="Ingredient",
+                      color_discrete_map=ingredient_colors) # Applied the explicit map here
         
-        # Changed to % format and explicitly enlarged the font size
         fig3.update_traces(textposition='inside', texttemplate='<b>%{label}</b><br>%{value:.1f}%', textfont_size=18)
         fig3.update_layout(showlegend=False, height=280, margin=dict(t=10, b=10, l=10, r=10))
         st.plotly_chart(fig3, use_container_width=True)
 
-# Quadrant 4: Nutrient grams per 100g tin (Bottom Right)
+# Quadrant 4: Nutrient grams per 100g tin
 with col4:
     with st.container(border=True):
         st.subheader("Nutrient grams per 100g tin")
@@ -180,7 +192,7 @@ with col4:
                    y=df_nut['Nutrient'], 
                    x=df_nut['Target Requirement'], 
                    orientation='h', 
-                   marker_color='#c6f7d0', 
+                   marker_color='#c6f7d0', # Kept the target bars using that same light mint for cohesion
                    text=[f'<b>{val:.1f}</b>' for val in df_nut['Target Requirement']], 
                    textposition='auto'),
             go.Bar(name='Actual Achieved', 
