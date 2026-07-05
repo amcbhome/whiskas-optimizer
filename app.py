@@ -158,7 +158,14 @@ with col2:
         df_table = pd.concat([df_table, grand_total_row], ignore_index=True)
         
         df_table['g'] = df_table['g'].apply(lambda x: f"{x:.1f}" if isinstance(x, float) else x)
-        st.dataframe(df_table, hide_index=True, use_container_width=True)
+        
+        # Apply Pandas Styling to increase font size and make it bold
+        styled_table = df_table.style.set_properties(**{
+            'font-size': '15px',
+            'font-weight': 'bold'
+        })
+        
+        st.dataframe(styled_table, hide_index=True, use_container_width=True)
 
 # BOTTOM ROW
 col3, col4 = st.columns(2, gap="medium")
@@ -183,7 +190,6 @@ with col4:
     with st.container(border=True):
         st.subheader("Nutrient Requirement")
         
-        # Helper function to check constraints (with minor rounding for float precision issues)
         def get_status(actual, target, is_min=True):
             if is_min:
                 return "✔️" if round(actual, 4) >= target else "❌"
@@ -214,5 +220,10 @@ with col4:
         
         df_req = pd.DataFrame(req_data)
         
-        # Display the table, ensuring it stretches to fill the card
-        st.dataframe(df_req, hide_index=True, use_container_width=True)
+        # Apply Pandas Styling to increase font size and make it bold
+        styled_req = df_req.style.set_properties(**{
+            'font-size': '15px',
+            'font-weight': 'bold'
+        })
+        
+        st.dataframe(styled_req, hide_index=True, use_container_width=True)
