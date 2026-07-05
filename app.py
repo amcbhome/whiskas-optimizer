@@ -24,14 +24,14 @@ st.markdown("""
         box-shadow: 0 4px 6px rgba(0,0,0,0.3);
     }
     
-    /* Metric Labels (Targeting the pale yellow from the image) */
+    /* Metric Labels */
     [data-testid="stMetricLabel"] {
         color: #e5f396 !important;
         font-size: 1.1rem !important;
         font-weight: 600;
     }
     
-    /* Metric Values (Targeting the purple accent) */
+    /* Metric Values */
     [data-testid="stMetricValue"] {
         color: #aa85f8 !important;
         font-weight: 800;
@@ -44,7 +44,7 @@ st.markdown("""
     
     /* Ensure chart panel gets correct card styling */
     [data-testid="stAltairChart"] {
-        padding: 0; /* Let Altair handle its padding */
+        padding: 0; 
     }
     </style>
 """, unsafe_allow_html=True)
@@ -118,48 +118,5 @@ if pulp.LpStatus[prob.status] == 'Optimal':
             'Percent': [max(0.0, x[ing].varValue) for ing in Ingredients] 
         })
         
-        # Define Custom Color Palette (Neon yellow and purple, matching aesthetic)
-        neon_colors = ["#A678E2", "#FFFC99", "#8EE6D5", "#98E68D", "#89E6E3", "#94E2E0"] 
-        custom_scale = alt.Scale(domain=df_mix['Ingredient'].tolist(), range=neon_colors[:len(Ingredients)])
-
-        # Create Doughnut Chart Base
-        base = alt.Chart(df_mix).encode(
-            theta=alt.Theta("Grams", stack=True),
-            color=alt.Color("Ingredient", scale=custom_scale, legend=alt.Legend(title="Ingredients", orient="right", titleColor="#ffffff", labelColor="#ffffff")),
-            order=alt.Order("Grams", sort="descending"),
-            tooltip=["Ingredient", alt.Tooltip("Percent", format=".1f%%"), alt.Tooltip("Grams", format=".1fg")]
-        ).properties(
-            title={"text": "Ingredient % Breakdown", "color": "#e5f396", "fontSize": 16},
-            background="#262628" 
-        )
-        
-        # REMOVED .interactive() FROM THIS LINE
-        doughnut = base.mark_arc(innerRadius=60, stroke="#3e3e42", strokeWidth=1)
-        
-        # Add labels directly to the segments
-        text = base.mark_text(radius=80, fill="#ffffff", fontSize=12).encode(
-            text=alt.Text("Percent", format=".1f%%"),
-            order=alt.Order("Grams", sort="descending")
-        )
-        
-        chart_final = (doughnut + text).configure_view(strokeWidth=0).configure_title(fontSize=18, color="#e5f396", anchor='start')
-        
-        st.altair_chart(chart_final, use_container_width=True)
-
-    # Column B: The grid of individual metric cards for grams
-    with mix_metrics_col:
-        mix_grid_cols = st.columns(6)
-        for idx, ing in enumerate(Ingredients):
-            with mix_grid_cols[idx]:
-                val = x[ing].varValue
-                # Ensure no small negative numbers from solver
-                display_val = max(0.0, val)
-                st.metric(label=ing.replace("_", " "), value=f"{display_val:.1f}g")
-
-    st.markdown("<br>", unsafe_allow_html=True)
-
-    # Third Row: Final Nutritional Values vs Constraints
-    st.subheader("Nutritional Breakdown")
-    nut_col1, nut_col2, nut_col3, nut_col4 = st.columns(4)
-    
-    final_prot = sum
+        # Filter out 0g items so their text labels don't overlap on the chart
+        df_mix_chart = df_
