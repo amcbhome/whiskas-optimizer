@@ -141,10 +141,10 @@ if pulp.LpStatus[prob.status] == 'Optimal':
             text=alt.Text("Chart_Label:N")
         )
         
-        # Add padding to prevent the outside labels from being clipped off the canvas
+        # Add padding as a dictionary to prevent the outside labels from being clipped
         chart_final = alt.layer(pie, text).properties(
             height=350,
-            padding=40,
+            padding={"left": 40, "right": 40, "top": 40, "bottom": 40},
             background="#262628" 
         ).configure_view(strokeWidth=0)
         
@@ -181,7 +181,7 @@ if pulp.LpStatus[prob.status] == 'Optimal':
         final_fib = sum([fibre[i] * max(0.0, x[i].varValue) for i in Ingredients])
         final_salt = sum([salt[i] * max(0.0, x[i].varValue) for i in Ingredients])
         
-        # Shortened titles (e.g. "Total Protein" -> "Protein") to guarantee single-line fit
+        # Shortened titles to guarantee single-line fit
         with nut_cols[0]:
             st.metric(label="Protein (g)", value=f"{final_prot:.2f}", delta=f"Min: {req_protein}", delta_color="off")
         with nut_cols[1]:
