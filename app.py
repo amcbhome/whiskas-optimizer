@@ -5,7 +5,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 
 # Set up page configurations
-st.set_page_config(page_title="Whiskas Optimizer", layout="wide", initial_sidebar_state="expanded")
+st.set_page_config(page_title="Production Optimizer", layout="wide", initial_sidebar_state="expanded")
 
 # Custom CSS for the overall background
 st.markdown("""
@@ -43,7 +43,7 @@ with st.sidebar:
 st.title("Optimization Dashboard")
 st.markdown("""
 <div style="font-size: 18px;">
-Welcome to the interactive <b>Whiskas Blending Problem</b> dashboard. This application demonstrates prescriptive analytics using linear programming to determine the most cost-effective recipe for cat food. The optimization engine calculates the exact mass of six different ingredients required to minimize production costs while strictly adhering to targeted nutritional constraints (Protein, Fat, Fibre, and Salt). Use the <b>What-If Analysis</b> panel on the left to simulate market volatility and instantly see how fluctuating ingredient costs impact the optimized portfolio and bottom line.
+Welcome to the interactive <b>Production Blending Problem</b> dashboard. This application demonstrates prescriptive analytics using linear programming to determine the most cost-effective recipe for cat food. The optimization engine calculates the exact mass of six different ingredients required to minimize production costs while strictly adhering to targeted nutritional constraints (Protein, Fat, Fibre, and Salt). Use the <b>What-If Analysis</b> panel on the left to simulate market volatility and instantly see how fluctuating ingredient costs impact the optimized portfolio and bottom line.
 </div>
 <hr>
 """, unsafe_allow_html=True)
